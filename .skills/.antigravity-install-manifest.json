@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-04-11T18:11:18.522Z",
+  "entries": [
+    "audit-skills",
+    "docs",
+    "k6-load-testing",
+    "security/aws-compliance-checker",
+    "security/aws-iam-best-practices",
+    "security/aws-secrets-rotation",
+    "security/aws-security-audit"
+  ]
+}
