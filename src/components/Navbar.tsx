@@ -5,13 +5,16 @@ import { BarChart3, PlusCircle, History, LogOut, User } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useRouter } from 'next/navigation';
 
+import { UserRole } from '../lib/types';
+
 interface NavbarProps {
   activeTab: 'dashboard' | 'registro' | 'historial';
   setActiveTab: (tab: 'dashboard' | 'registro' | 'historial') => void;
   userEmail: string;
+  userRole: UserRole;
 }
 
-export default function Navbar({ activeTab, setActiveTab, userEmail }: NavbarProps) {
+export default function Navbar({ activeTab, setActiveTab, userEmail, userRole }: NavbarProps) {
   const router = useRouter();
 
   const handleLogout = async () => {
@@ -22,10 +25,10 @@ export default function Navbar({ activeTab, setActiveTab, userEmail }: NavbarPro
   };
 
   const navItems = [
-    { id: 'dashboard' as const, label: 'P&G Real-Time', icon: BarChart3 },
-    { id: 'registro' as const, label: 'Registro Rápido', icon: PlusCircle },
-    { id: 'historial' as const, label: 'Histórico & Comparativo', icon: History },
-  ];
+    { id: 'dashboard' as const, label: 'P&G Real-Time', icon: BarChart3, roles: ['admin'] },
+    { id: 'registro' as const, label: 'Registro Rápido', icon: PlusCircle, roles: ['admin', 'empleado'] },
+    { id: 'historial' as const, label: 'Histórico & Comparativo', icon: History, roles: ['admin'] },
+  ].filter(item => !userRole || item.roles.includes(userRole));
 
   return (
     <>
@@ -77,7 +80,9 @@ export default function Navbar({ activeTab, setActiveTab, userEmail }: NavbarPro
               <User className="w-4 h-4" />
             </div>
             <div className="overflow-hidden">
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">ADMINISTRADOR</p>
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                {userRole === 'admin' ? 'ADMINISTRADOR' : userRole === 'empleado' ? 'EMPLEADO' : 'USUARIO'}
+              </p>
               <p className="text-sm text-slate-300 truncate font-medium mt-0.5" title={userEmail}>
                 {userEmail}
               </p>

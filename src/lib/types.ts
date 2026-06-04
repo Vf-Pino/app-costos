@@ -22,3 +22,5 @@ export enum MetodoPago {
   Efectivo = 'Efectivo',
   Transferencia = 'Transferencia'
 }
+
+export type UserRole = 'admin' | 'empleado' | null;

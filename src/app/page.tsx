@@ -10,9 +10,12 @@ import RegistrationView from '../components/RegistrationView';
 import HistoryView from '../components/HistoryView';
 import { BarChart3 } from 'lucide-react';
 
+import { UserRole } from '../lib/types';
+
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'registro' | 'historial'>('dashboard');
   const [session, setSession] = useState<Session | null>(null);
+  const [userRole, setUserRole] = useState<UserRole>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -24,7 +27,27 @@ export default function HomePage() {
         
         if (!activeSession) {
           router.push('/login');
+          return;
         }
+
+        // Fetch user role
+        const { data: roleData, error: roleError } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', activeSession.user.id)
+          .single();
+
+        let role: UserRole = null;
+        if (!roleError && roleData) {
+          role = roleData.role as UserRole;
+          setUserRole(role);
+        }
+
+        // If employee, force them to 'registro' tab
+        if (role === 'empleado') {
+          setActiveTab('registro');
+        }
+
       } catch (err) {
         console.error('Session retrieval error:', err);
         router.push('/login');
@@ -67,15 +90,19 @@ export default function HomePage() {
       {/* Navigation */}
       <Navbar 
         activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
+        setActiveTab={(tab) => {
+          if (userRole === 'empleado' && tab !== 'registro') return;
+          setActiveTab(tab);
+        }} 
         userEmail={session?.user?.email || 'usuario@casabistro.com'} 
+        userRole={userRole}
       />
 
       {/* Main Content Pane */}
       <main id="main-content" className="flex-1 flex flex-col overflow-y-auto max-h-screen bg-transparent">
-        {activeTab === 'dashboard' && <DashboardView />}
+        {activeTab === 'dashboard' && userRole === 'admin' && <DashboardView />}
         {activeTab === 'registro' && <RegistrationView />}
-        {activeTab === 'historial' && <HistoryView />}
+        {activeTab === 'historial' && userRole === 'admin' && <HistoryView />}
       </main>
     </div>
   );
