@@ -86,8 +86,8 @@ export async function getRealTimeMetrics(year: number, month: number): Promise<P
 
   // Parallel database calls
   const [ingresosRes, egresosRes, metasRes, proyeccionesRes] = await Promise.all([
-    supabase.from('ingresos_diarios').select('*').gte('fecha', startDate).lte('fecha', endDate).limit(999999),
-    supabase.from('egresos_costos').select('*').gte('fecha', startDate).lte('fecha', endDate).limit(999999),
+    supabase.from('ingresos_diarios').select('*').gte('fecha', startDate).lte('fecha', endDate),
+    supabase.from('egresos_costos').select('*').gte('fecha', startDate).lte('fecha', endDate),
     supabase.from('metas_control').select('*'),
     supabase.from('proyecciones_gastos').select('*')
   ]);
@@ -328,8 +328,8 @@ export async function getHistoricalComparison(period1: string, period2: string):
     const endDate = `${y}-${monthStr}-${String(totalDays).padStart(2, '0')}`;
 
     const [ingresosRes, egresosRes] = await Promise.all([
-      supabase.from('ingresos_diarios').select('monto_neto').gte('fecha', startDate).lte('fecha', endDate).limit(999999),
-      supabase.from('egresos_costos').select('rubro_principal, monto').gte('fecha', startDate).lte('fecha', endDate).limit(999999)
+      supabase.from('ingresos_diarios').select('monto_neto').gte('fecha', startDate).lte('fecha', endDate),
+      supabase.from('egresos_costos').select('rubro_principal, monto').gte('fecha', startDate).lte('fecha', endDate)
     ]);
 
     if (ingresosRes.error) throw new Error(ingresosRes.error.message);

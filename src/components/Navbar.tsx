@@ -1,15 +1,15 @@
 'use client';
 
 import React from 'react';
-import { BarChart3, PlusCircle, History, LogOut, User } from 'lucide-react';
+import { BarChart3, PlusCircle, History, LogOut, User, Users } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useRouter } from 'next/navigation';
 
 import { UserRole } from '../lib/types';
 
 interface NavbarProps {
-  activeTab: 'dashboard' | 'registro' | 'historial';
-  setActiveTab: (tab: 'dashboard' | 'registro' | 'historial') => void;
+  activeTab: 'dashboard' | 'registro' | 'historial' | 'nomina';
+  setActiveTab: (tab: 'dashboard' | 'registro' | 'historial' | 'nomina') => void;
   userEmail: string;
   userRole: UserRole;
 }
@@ -28,6 +28,7 @@ export default function Navbar({ activeTab, setActiveTab, userEmail, userRole }:
     { id: 'dashboard' as const, label: 'P&G Real-Time', icon: BarChart3, roles: ['admin'] },
     { id: 'registro' as const, label: 'Registro Rápido', icon: PlusCircle, roles: ['admin', 'empleado'] },
     { id: 'historial' as const, label: 'Histórico & Comparativo', icon: History, roles: ['admin'] },
+    { id: 'nomina' as const, label: 'Nómina y Personal', icon: Users, roles: ['admin', 'empleado'] },
   ].filter(item => !userRole || item.roles.includes(userRole));
 
   return (
