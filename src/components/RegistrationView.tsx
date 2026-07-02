@@ -36,7 +36,11 @@ interface ButtonConfig {
   colorClass: string;
 }
 
-export default function RegistrationView() {
+interface RegistrationViewProps {
+  setActiveTab?: (tab: 'dashboard' | 'registro' | 'auditoria' | 'historial' | 'nomina') => void;
+}
+
+export default function RegistrationView({ setActiveTab }: RegistrationViewProps) {
   const { data: transactionsData, error: transactionsError, mutate: mutateTransactions } = useSWR(
     'recentTransactions',
     getRecentTransactions
@@ -52,7 +56,8 @@ export default function RegistrationView() {
   const [fecha, setFecha] = useState('');
   const [monto, setMonto] = useState('');
   const [proveedor, setProveedor] = useState('');
-  const [subcategoria, setSubcategoria] = useState<SubcategoriaMercancia | ''>('');
+  const [subcategoria, setSubcategoria] = useState<string>('');
+  const [newSubcategoryName, setNewSubcategoryName] = useState('');
   const [metodoPago, setMetodoPago] = useState<MetodoPago>(MetodoPago.Efectivo);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
@@ -136,6 +141,7 @@ export default function RegistrationView() {
     setMonto('');
     setProveedor('');
     setSubcategoria(btn.rubro === RubroPrincipal.Mercancia ? SubcategoriaMercancia.Carnes : '');
+    setNewSubcategoryName('');
     setMetodoPago(MetodoPago.Efectivo);
     setFormError('');
     setIsOpen(true);
@@ -164,8 +170,15 @@ export default function RegistrationView() {
       if (selectedBtn.type === 'ingreso') {
         await insertIngreso(fecha, numericMonto, metodoPago);
       } else {
-        const sub = selectedBtn.rubro === RubroPrincipal.Mercancia ? (subcategoria as SubcategoriaMercancia) : null;
-        await insertEgreso(fecha, selectedBtn.rubro as RubroPrincipal, sub, proveedor || null, numericMonto);
+        const finalSub = selectedBtn.rubro === RubroPrincipal.Mercancia 
+          ? (subcategoria === 'new' ? newSubcategoryName.trim() : subcategoria) 
+          : null;
+          
+        if (selectedBtn.rubro === RubroPrincipal.Mercancia && !finalSub) {
+          throw new Error('Debes especificar la subcategoría de la mercancía');
+        }
+
+        await insertEgreso(fecha, selectedBtn.rubro as RubroPrincipal, finalSub, proveedor || null, numericMonto);
       }
       closeFormModal();
       mutateTransactions(); // Refresh the express audit list immediately
@@ -321,12 +334,23 @@ export default function RegistrationView() {
             ))}
           </div>
         )}
+        
+        {setActiveTab && transactions.length > 0 && (
+          <div className="p-4 border-t border-white/[0.04] bg-white/[0.01] flex justify-center">
+            <button 
+              onClick={() => setActiveTab('auditoria')}
+              className="px-6 py-2 rounded-xl text-xs font-bold text-indigo-300 hover:text-white hover:bg-indigo-500/20 transition-all border border-indigo-500/20 cursor-pointer"
+            >
+              Ver Historial Completo
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Insert Modal Overlay */}
       {isOpen && selectedBtn && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#02040a]/80 backdrop-blur-md">
-          <div className="w-full max-w-md p-8 rounded-3xl glass-panel-glow border border-white/[0.05] relative shadow-2xl animate-scale-in">
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-0 sm:p-8 sm:pt-16 bg-[#02040a]/95 sm:bg-[#02040a]/80 backdrop-blur-md overflow-y-auto">
+          <div className="w-full max-w-full sm:max-w-2xl min-h-screen sm:min-h-0 p-6 pt-16 sm:p-10 rounded-none sm:rounded-3xl glass-panel-glow border border-white/[0.05] relative shadow-2xl animate-scale-in shrink-0 flex flex-col justify-start">
             {/* Modal Light Accent */}
             <div className="absolute top-0 left-1/4 right-1/4 h-[2px] bg-gradient-to-r from-transparent via-indigo-500/30 to-transparent"></div>
             
@@ -403,8 +427,8 @@ export default function RegistrationView() {
                   <select
                     id="subcat-field"
                     value={subcategoria}
-                    onChange={(e) => setSubcategoria(e.target.value as SubcategoriaMercancia)}
-                    className="w-full px-4 py-3 rounded-2xl glass-input text-white text-sm bg-[#090d1a] border border-white/[0.05] focus:border-indigo-500/50 outline-none"
+                    onChange={(e) => setSubcategoria(e.target.value)}
+                    className="w-full px-4 py-3 rounded-2xl glass-input text-white text-sm bg-[#090d1a] border border-white/[0.05] focus:border-indigo-500/50 outline-none mb-3"
                   >
                     <option value={SubcategoriaMercancia.Carnes}>{SubcategoriaMercancia.Carnes}</option>
                     <option value={SubcategoriaMercancia.Quesos}>{SubcategoriaMercancia.Quesos}</option>
@@ -412,7 +436,24 @@ export default function RegistrationView() {
                     <option value={SubcategoriaMercancia.Bebidas}>{SubcategoriaMercancia.Bebidas}</option>
                     <option value={SubcategoriaMercancia.Aseo}>{SubcategoriaMercancia.Aseo}</option>
                     <option value={SubcategoriaMercancia.Desechables}>{SubcategoriaMercancia.Desechables}</option>
+                    <option value="new" className="text-indigo-400 font-bold">+ Crear nueva categoría</option>
                   </select>
+                  
+                  {subcategoria === 'new' && (
+                    <div className="animate-fade-in relative group mt-2">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500 pointer-events-none group-focus-within:text-indigo-400 transition-colors">
+                        <ShoppingBag className="w-4 h-4" />
+                      </div>
+                      <input
+                        type="text"
+                        required
+                        value={newSubcategoryName}
+                        onChange={(e) => setNewSubcategoryName(e.target.value)}
+                        placeholder="Nombre de la subcategoría"
+                        className="w-full pl-11 pr-3 py-3 rounded-2xl glass-input text-white text-sm focus:border-indigo-500/50"
+                      />
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -474,8 +515,8 @@ export default function RegistrationView() {
 
       {/* Delete Confirmation Modal */}
       {deleteConfirmId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#02040a]/85 backdrop-blur-md">
-          <div className="w-full max-w-sm p-8 rounded-3xl glass-panel border border-red-500/20 text-center shadow-2xl animate-scale-in">
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-0 sm:p-8 sm:pt-24 bg-[#02040a]/95 sm:bg-[#02040a]/85 backdrop-blur-md overflow-y-auto">
+          <div className="w-full max-w-full sm:max-w-md min-h-screen sm:min-h-0 p-8 pt-20 sm:p-8 rounded-none sm:rounded-3xl glass-panel border border-red-500/20 text-center shadow-2xl animate-scale-in flex flex-col justify-start">
             <div className="w-16 h-16 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-center text-red-400 mx-auto mb-4 animate-pulse">
               <AlertTriangle className="w-8 h-8" />
             </div>

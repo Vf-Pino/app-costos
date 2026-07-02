@@ -31,10 +31,6 @@ create table if not exists casa_bistro_analitica.egresos_costos (
       'Mercancia', 'Nomina Operativa', 'Nomina Administrativa', 
       'Arriendo', 'Servicios', 'Publicidad', 'Mantenimiento', 'Otros'
     )
-  ),
-  constraint check_subcategoria_mercancia check (
-    (rubro_principal = 'Mercancia' and subcategoria in ('Carnes', 'Quesos', 'Legumbres', 'Bebidas', 'Aseo', 'Desechables')) or
-    (rubro_principal <> 'Mercancia' and subcategoria is null)
   )
 );
 

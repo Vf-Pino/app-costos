@@ -49,11 +49,12 @@ export async function getActiveEmployees(): Promise<Employee[]> {
 export async function createEmployee(
   first_name: string,
   last_name: string,
-  hourly_rate: number
+  hourly_rate: number,
+  minute_rate?: number
 ): Promise<Employee> {
   const { data, error } = await supabase
     .from('employees')
-    .insert([{ first_name, last_name, hourly_rate }])
+    .insert([{ first_name, last_name, hourly_rate, minute_rate }])
     .select()
     .single();
 
@@ -137,6 +138,67 @@ export async function checkOut(time_log_id: number): Promise<TimeLog> {
   return data as TimeLog;
 }
 
+/**
+ * Inserta un turno de forma manual para fechas pasadas.
+ * Verifica que el check_out sea mayor al check_in.
+ */
+export async function insertManualShift(employee_id: string, check_in_iso: string, check_out_iso: string): Promise<TimeLog> {
+  const checkInDate = new Date(check_in_iso);
+  const checkOutDate = new Date(check_out_iso);
+
+  if (checkOutDate <= checkInDate) {
+    throw new Error('La fecha de salida debe ser posterior a la fecha de entrada.');
+  }
+
+  const date = check_in_iso.split('T')[0]; // YYYY-MM-DD
+
+  const { data, error } = await supabase
+    .from('time_logs')
+    .insert([{
+      employee_id,
+      date,
+      check_in: check_in_iso,
+      check_out: check_out_iso,
+    }])
+    .select()
+    .single();
+
+  if (error) {
+    if (error.code === '23505') {
+      throw new Error(`Este empleado ya tiene un turno registrado el día ${date}.`);
+    }
+    throw new Error(`Error insertando turno manual: ${error.message}`);
+  }
+  return data as TimeLog;
+}
+
+/**
+ * Obtiene el costo real en tiempo real de la nómina para un mes determinado.
+ * Multiplica los minutos trabajados por la tarifa de cada empleado.
+ */
+export async function getPayrollRealCost(year: number, month: number): Promise<number> {
+  const totalDays = new Date(year, month, 0).getDate();
+  const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+  const endDate = `${year}-${String(month).padStart(2, '0')}-${String(totalDays).padStart(2, '0')}`;
+
+  const { data, error } = await supabase
+    .from('time_logs')
+    .select('total_minutes, employees(hourly_rate)')
+    .gte('date', startDate)
+    .lte('date', endDate)
+    .not('check_out', 'is', null);
+
+  if (error) throw new Error(`Error obteniendo costo de nómina: ${error.message}`);
+
+  const totalCost = (data || []).reduce((sum, log: any) => {
+    const minutes = log.total_minutes || 0;
+    const rate = log.employees?.hourly_rate || 0;
+    return sum + (minutes / 60) * rate;
+  }, 0);
+
+  return totalCost;
+}
+
 // ─────────────────────────────────────────────
 // DEUDAS Y ADELANTOS
 // ─────────────────────────────────────────────
@@ -195,7 +257,8 @@ export async function getLiquidationPreview(
     const total_minutes_worked = empLogs.reduce((sum, t) => sum + (t.total_minutes ?? 0), 0);
     const pending_debts = debts.filter((d) => d.employee_id === emp.id);
 
-    const gross_pay = (total_minutes_worked / 60) * emp.hourly_rate;
+    const effective_minute_rate = emp.minute_rate ?? (emp.hourly_rate / 60);
+    const gross_pay = total_minutes_worked * effective_minute_rate;
     const total_deductions = pending_debts.reduce((sum, d) => sum + d.amount, 0);
     const net_pay = Math.max(0, gross_pay - total_deductions);
 

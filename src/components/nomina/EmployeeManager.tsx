@@ -46,11 +46,11 @@ function EmployeeModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+      className="fixed inset-0 z-[9999] flex items-start justify-center p-0 sm:p-4 sm:pt-16 bg-black/95 sm:bg-black/70 backdrop-blur-sm overflow-y-auto"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className="bg-[#090d1f] border border-white/[0.12] rounded-3xl shadow-[0_8px_80px_rgba(0,0,0,0.8)] w-full max-w-2xl relative overflow-hidden"
+        className="bg-[#090d1f] border border-white/[0.12] rounded-none sm:rounded-3xl shadow-[0_8px_80px_rgba(0,0,0,0.8)] w-full max-w-full sm:max-w-2xl min-h-screen sm:min-h-0 pt-16 sm:pt-0 relative overflow-hidden flex flex-col justify-start shrink-0"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Glows */}
@@ -141,9 +141,6 @@ function EmployeeModal({
                   />
                 </div>
               </div>
-              <p className="text-[10px] text-slate-600 uppercase tracking-wide text-center pt-1">
-                ↔ Vinculados matemáticamente
-              </p>
             </div>
           </div>
 
@@ -200,12 +197,12 @@ export default function EmployeeManager() {
 
   const handleHourlyRateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const hourly = Number(e.target.value);
-    setFormData((p) => ({ ...p, hourly_rate: hourly, minute_rate: Number((hourly / 60).toFixed(2)) }));
+    setFormData((p) => ({ ...p, hourly_rate: hourly }));
   };
 
   const handleMinuteRateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const minute = Number(e.target.value);
-    setFormData((p) => ({ ...p, minute_rate: minute, hourly_rate: Math.round(minute * 60) }));
+    setFormData((p) => ({ ...p, minute_rate: minute }));
   };
 
   const handleAddEmployee = async (e: React.FormEvent) => {
@@ -213,7 +210,7 @@ export default function EmployeeManager() {
     setIsSubmitting(true);
     setError(null);
     try {
-      await createEmployee(formData.first_name, formData.last_name, formData.hourly_rate);
+      await createEmployee(formData.first_name, formData.last_name, formData.hourly_rate, formData.minute_rate);
       setIsModalOpen(false);
       setFormData(EMPTY_FORM);
       await loadEmployees();
@@ -297,7 +294,7 @@ export default function EmployeeManager() {
                     </td>
                     <td className="px-4 py-5 whitespace-nowrap">
                       <span className="text-slate-400 font-mono text-sm">
-                        ${(emp.hourly_rate / 60).toFixed(2)}
+                        ${emp.minute_rate != null ? emp.minute_rate.toLocaleString('es-CO') : (emp.hourly_rate / 60).toFixed(2)}
                       </span>
                     </td>
                     <td className="px-4 py-5 whitespace-nowrap">

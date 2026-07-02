@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS casa_bistro_analitica.employees (
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
     hourly_rate NUMERIC(10, 2) NOT NULL DEFAULT 0,
+    minute_rate NUMERIC(10, 2) DEFAULT NULL,
     is_active BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

@@ -18,6 +18,9 @@ export enum SubcategoriaMercancia {
   Desechables = 'Desechables'
 }
 
+// Added to allow dynamic subcategories created by the user
+export type SubcategoriaValor = SubcategoriaMercancia | string;
+
 export enum MetodoPago {
   Efectivo = 'Efectivo',
   Transferencia = 'Transferencia'

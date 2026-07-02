@@ -8,13 +8,14 @@ import Navbar from '../components/Navbar';
 import DashboardView from '../components/DashboardView';
 import RegistrationView from '../components/RegistrationView';
 import HistoryView from '../components/HistoryView';
+import FullHistoryView from '../components/FullHistoryView';
 import NominaView from '../components/NominaView';
 import { BarChart3 } from 'lucide-react';
 
 import { UserRole } from '../lib/types';
 
 export default function HomePage() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'registro' | 'historial' | 'nomina'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'registro' | 'auditoria' | 'historial' | 'nomina'>('dashboard');
   const [session, setSession] = useState<Session | null>(null);
   const [userRole, setUserRole] = useState<UserRole>(null);
   const [loading, setLoading] = useState(true);
@@ -102,7 +103,8 @@ export default function HomePage() {
       {/* Main Content Pane */}
       <main id="main-content" className="flex-1 flex flex-col overflow-y-auto max-h-screen bg-transparent">
         {activeTab === 'dashboard' && userRole === 'admin' && <DashboardView />}
-        {activeTab === 'registro' && <RegistrationView />}
+        {activeTab === 'registro' && <RegistrationView setActiveTab={setActiveTab} />}
+        {activeTab === 'auditoria' && userRole === 'admin' && <FullHistoryView />}
         {activeTab === 'historial' && userRole === 'admin' && <HistoryView />}
         {activeTab === 'nomina' && (userRole === 'admin' || userRole === 'empleado') && <NominaView />}
       </main>

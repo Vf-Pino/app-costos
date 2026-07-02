@@ -7,6 +7,7 @@ import {
   getActiveEmployees,
   checkIn,
   checkOut,
+  insertManualShift,
   ORPHAN_SHIFT_THRESHOLD_HOURS,
 } from '@/lib/queries-nomina';
 import type { TimeLogWithEmployee } from '@/lib/types/nomina';
@@ -19,6 +20,12 @@ export default function TimeLogger() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Manual Shift State
+  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [manualEmployee, setManualEmployee] = useState('');
+  const [manualCheckIn, setManualCheckIn] = useState('');
+  const [manualCheckOut, setManualCheckOut] = useState('');
 
   // Hallazgo #3: Reemplazamos `useState(tick)` fantasma por useReducer limpio
   const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
@@ -81,6 +88,29 @@ export default function TimeLogger() {
     }
   };
 
+  const handleManualSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualEmployee || !manualCheckIn || !manualCheckOut || actionLoading) return;
+    setActionLoading(true);
+    setError(null);
+    try {
+      await insertManualShift(
+        manualEmployee,
+        new Date(manualCheckIn).toISOString(),
+        new Date(manualCheckOut).toISOString()
+      );
+      setIsManualModalOpen(false);
+      setManualEmployee('');
+      setManualCheckIn('');
+      setManualCheckOut('');
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al registrar turno manual');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   // Hallazgo #8: Constante ORPHAN_SHIFT_THRESHOLD_HOURS viene del módulo de queries
   const getShiftStatus = (checkInIso: string) => {
     const diffMs = Date.now() - new Date(checkInIso).getTime();
@@ -127,6 +157,12 @@ export default function TimeLogger() {
             Control de Asistencia
           </h2>
           <p className="text-sm text-slate-400">Selecciona un empleado para iniciar su turno.</p>
+          <button 
+            onClick={() => setIsManualModalOpen(true)}
+            className="mt-3 text-xs font-bold text-indigo-400 hover:text-indigo-300 underline underline-offset-2"
+          >
+            + Registrar Turno Aislado / Pasado
+          </button>
         </div>
 
         <div className="relative z-10 w-full md:w-auto flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
@@ -237,6 +273,69 @@ export default function TimeLogger() {
           </div>
         )}
       </div>
+
+      {/* Manual Shift Modal */}
+      {isManualModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-0 sm:p-8 sm:pt-20 bg-[#02040a]/95 sm:bg-[#02040a]/80 backdrop-blur-md overflow-y-auto">
+          <div className="w-full max-w-full sm:max-w-md min-h-screen sm:min-h-0 p-8 pt-20 sm:p-8 rounded-none sm:rounded-3xl glass-panel-glow border border-white/[0.05] relative shadow-2xl animate-scale-in shrink-0 flex flex-col justify-start">
+            <h3 className="text-xl font-bold text-slate-100 mb-6">Registrar Turno Pasado</h3>
+            <form onSubmit={handleManualSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Empleado</label>
+                <select
+                  required
+                  value={manualEmployee}
+                  onChange={(e) => setManualEmployee(e.target.value)}
+                  className="w-full bg-[#090d1a] border border-white/[0.05] text-white px-4 py-3 rounded-xl focus:border-indigo-500/50 outline-none"
+                >
+                  <option value="">Seleccione Empleado...</option>
+                  {availableEmployees.map((emp) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.first_name} {emp.last_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Entrada</label>
+                <input
+                  type="datetime-local"
+                  required
+                  value={manualCheckIn}
+                  onChange={(e) => setManualCheckIn(e.target.value)}
+                  className="w-full bg-[#090d1a] border border-white/[0.05] text-white px-4 py-3 rounded-xl focus:border-indigo-500/50 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Salida</label>
+                <input
+                  type="datetime-local"
+                  required
+                  value={manualCheckOut}
+                  onChange={(e) => setManualCheckOut(e.target.value)}
+                  className="w-full bg-[#090d1a] border border-white/[0.05] text-white px-4 py-3 rounded-xl focus:border-indigo-500/50 outline-none"
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setIsManualModalOpen(false)}
+                  className="px-4 py-2 text-sm font-bold text-slate-400 hover:text-white"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={actionLoading}
+                  className="px-6 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-bold rounded-xl transition-colors disabled:opacity-50"
+                >
+                  {actionLoading ? 'Guardando...' : 'Registrar Turno'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

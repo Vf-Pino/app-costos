@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
-import { RubroPrincipal, SubcategoriaMercancia, MetodoPago } from './types';
+import { RubroPrincipal, SubcategoriaMercancia, SubcategoriaValor, MetodoPago } from './types';
+import { getPayrollRealCost } from './queries-nomina';
 
 export interface IngresoDiario {
   id: string;
@@ -13,7 +14,7 @@ export interface EgresoCosto {
   id: string;
   fecha: string;
   rubro_principal: RubroPrincipal;
-  subcategoria: SubcategoriaMercancia | null;
+  subcategoria: SubcategoriaValor | null;
   proveedor: string | null;
   monto: number;
   creado_en: string;
@@ -36,7 +37,7 @@ export interface Transaction {
   fecha: string;
   tipo: 'ingreso' | 'egreso';
   rubro_principal: string | RubroPrincipal;
-  subcategoria: SubcategoriaMercancia | null;
+  subcategoria: SubcategoriaValor | null;
   proveedor: string | null;
   monto: number;
   metodo_pago?: MetodoPago | null;
@@ -85,11 +86,12 @@ export async function getRealTimeMetrics(year: number, month: number): Promise<P
   const endDate = `${year}-${String(month).padStart(2, '0')}-${String(totalDays).padStart(2, '0')}`;
 
   // Parallel database calls
-  const [ingresosRes, egresosRes, metasRes, proyeccionesRes] = await Promise.all([
+  const [ingresosRes, egresosRes, metasRes, proyeccionesRes, realPayrollCost] = await Promise.all([
     supabase.from('ingresos_diarios').select('*').gte('fecha', startDate).lte('fecha', endDate),
     supabase.from('egresos_costos').select('*').gte('fecha', startDate).lte('fecha', endDate),
     supabase.from('metas_control').select('*'),
-    supabase.from('proyecciones_gastos').select('*')
+    supabase.from('proyecciones_gastos').select('*'),
+    getPayrollRealCost(year, month)
   ]);
 
   if (ingresosRes.error) throw new Error(`Error fetching ingresos: ${ingresosRes.error.message}`);
@@ -137,11 +139,17 @@ export async function getRealTimeMetrics(year: number, month: number): Promise<P
     // Nomina quincenal smoothing logic
     const isNomina = rubro === RubroPrincipal.NominaOperativa || rubro === RubroPrincipal.NominaAdministrativa;
     if (isNomina && realMonto === 0) {
-      const proyeccion = proyecciones.find(p => p.rubro === rubro);
-      const montoProyectado = proyeccion ? Number(proyeccion.monto_proyectado_mensual) : 0;
-      teoricoMonto = montoProyectado * (daysPassed / totalDays);
-      esTeorico = true;
-      infoText = `Teórico devengado (Día ${daysPassed}/${totalDays})`;
+      if (rubro === RubroPrincipal.NominaOperativa && realPayrollCost > 0) {
+        teoricoMonto = realPayrollCost;
+        esTeorico = true;
+        infoText = `Costo real de turnos registrados`;
+      } else {
+        const proyeccion = proyecciones.find(p => p.rubro === rubro);
+        const montoProyectado = proyeccion ? Number(proyeccion.monto_proyectado_mensual) : 0;
+        teoricoMonto = montoProyectado * (daysPassed / totalDays);
+        esTeorico = true;
+        infoText = `Teórico devengado (Día ${daysPassed}/${totalDays})`;
+      }
     }
 
     // Calculate percentage relative to sales (V_n)
@@ -220,7 +228,7 @@ export async function insertIngreso(fecha: string, monto: number, metodoPago: Me
 export async function insertEgreso(
   fecha: string,
   rubro: RubroPrincipal,
-  subcategoria: SubcategoriaMercancia | null,
+  subcategoria: SubcategoriaValor | null,
   proveedor: string | null,
   monto: number
 ): Promise<void> {
@@ -276,6 +284,47 @@ export async function getRecentTransactions(): Promise<Transaction[]> {
   return [...ingresos, ...egresos]
     .sort((a, b) => new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime())
     .slice(0, 5);
+}
+
+/**
+ * Gets all transactions with optional pagination
+ */
+export async function getAllTransactions(limit: number = 50, offset: number = 0): Promise<Transaction[]> {
+  const [ingresosRes, egresosRes] = await Promise.all([
+    supabase.from('ingresos_diarios').select('*').order('creado_en', { ascending: false }).range(offset, offset + limit - 1),
+    supabase.from('egresos_costos').select('*').order('creado_en', { ascending: false }).range(offset, offset + limit - 1)
+  ]);
+
+  if (ingresosRes.error) throw new Error(ingresosRes.error.message);
+  if (egresosRes.error) throw new Error(egresosRes.error.message);
+
+  const ingresos = (ingresosRes.data || []).map((i: IngresoDiario) => ({
+    id: i.id,
+    fecha: i.fecha,
+    tipo: 'ingreso' as const,
+    rubro_principal: 'Ingreso Diario',
+    subcategoria: null,
+    proveedor: null,
+    monto: Number(i.monto_neto),
+    metodo_pago: i.metodo_pago,
+    creado_en: i.creado_en
+  }));
+
+  const egresos = (egresosRes.data || []).map((e: EgresoCosto) => ({
+    id: e.id,
+    fecha: e.fecha,
+    tipo: 'egreso' as const,
+    rubro_principal: e.rubro_principal,
+    subcategoria: e.subcategoria,
+    proveedor: e.proveedor,
+    monto: Number(e.monto),
+    creado_en: e.creado_en
+  }));
+
+  // Combine and sort by creado_en desc, slice to limit
+  return [...ingresos, ...egresos]
+    .sort((a, b) => new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime())
+    .slice(0, limit);
 }
 
 /**

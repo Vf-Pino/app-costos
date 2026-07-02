@@ -5,6 +5,7 @@ export interface Employee {
   first_name: string;
   last_name: string;
   hourly_rate: number;
+  minute_rate?: number; // Optional para retrocompatibilidad
   is_active: boolean;
   created_at: string; // ISO timestamp
 }
@@ -20,7 +21,7 @@ export interface TimeLog {
 
 // TimeLog con datos del empleado (join)
 export interface TimeLogWithEmployee extends TimeLog {
-  employee: Pick<Employee, 'first_name' | 'last_name' | 'hourly_rate'>;
+  employee: Pick<Employee, 'first_name' | 'last_name' | 'hourly_rate' | 'minute_rate'>;
 }
 
 export interface DebtAdvance {

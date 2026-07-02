@@ -33,8 +33,8 @@ function ConfirmModal({
   if (!isOpen || typeof window === 'undefined') return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
-      <div className="bg-[#090d1f] border border-white/[0.12] rounded-3xl shadow-[0_8px_80px_rgba(0,0,0,0.8)] w-full max-w-sm p-8 relative overflow-hidden text-center">
+    <div className="fixed inset-0 z-[9999] flex items-start justify-center p-0 sm:p-4 sm:pt-16 bg-black/95 sm:bg-black/75 backdrop-blur-sm overflow-y-auto">
+      <div className="w-full max-w-full sm:max-w-4xl min-h-screen sm:min-h-0 sm:max-h-[90vh] flex flex-col bg-slate-900 border border-slate-700 rounded-none sm:rounded-2xl shadow-2xl shrink-0 p-8 pt-16 sm:p-8 relative overflow-hidden text-center justify-start">
         <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/10 rounded-full blur-[60px] pointer-events-none" />
         <div className="relative z-10">
           <div className="w-16 h-16 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center mx-auto mb-5">
