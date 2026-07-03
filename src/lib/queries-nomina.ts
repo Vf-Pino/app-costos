@@ -183,17 +183,17 @@ export async function getPayrollRealCost(year: number, month: number): Promise<n
 
   const { data, error } = await supabase
     .from('time_logs')
-    .select('total_minutes, employees(hourly_rate)')
+    .select('total_minutes, employees(hourly_rate, minute_rate)')
     .gte('date', startDate)
     .lte('date', endDate)
     .not('check_out', 'is', null);
 
   if (error) throw new Error(`Error obteniendo costo de nómina: ${error.message}`);
 
-  const totalCost = (data || []).reduce((sum, log: any) => {
+  const totalCost = (data || []).reduce((sum, log: { total_minutes: number | null; employees: { hourly_rate: number; minute_rate?: number } | null }) => {
     const minutes = log.total_minutes || 0;
-    const rate = log.employees?.hourly_rate || 0;
-    return sum + (minutes / 60) * rate;
+    const minuteRate = log.employees?.minute_rate ?? (log.employees?.hourly_rate ? log.employees.hourly_rate / 60 : 0);
+    return sum + (minutes * minuteRate);
   }, 0);
 
   return totalCost;

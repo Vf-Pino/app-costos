@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { RubroPrincipal, SubcategoriaMercancia, SubcategoriaValor, MetodoPago } from './types';
+import { RubroPrincipal, SubcategoriaValor, MetodoPago } from './types';
 import { getPayrollRealCost } from './queries-nomina';
 
 export interface IngresoDiario {
