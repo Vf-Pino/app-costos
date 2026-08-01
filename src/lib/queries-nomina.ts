@@ -190,9 +190,10 @@ export async function getPayrollRealCost(year: number, month: number): Promise<n
 
   if (error) throw new Error(`Error obteniendo costo de nómina: ${error.message}`);
 
-  const totalCost = (data || []).reduce((sum, log: { total_minutes: number | null; employees: { hourly_rate: number; minute_rate?: number } | null }) => {
+  const totalCost = (data || []).reduce((sum, log: { total_minutes: number | null; employees: { hourly_rate: number; minute_rate?: number } | { hourly_rate: number; minute_rate?: number }[] | null }) => {
     const minutes = log.total_minutes || 0;
-    const minuteRate = log.employees?.minute_rate ?? (log.employees?.hourly_rate ? log.employees.hourly_rate / 60 : 0);
+    const emp = Array.isArray(log.employees) ? log.employees[0] : log.employees;
+    const minuteRate = emp?.minute_rate ?? (emp?.hourly_rate ? emp.hourly_rate / 60 : 0);
     return sum + (minutes * minuteRate);
   }, 0);
 

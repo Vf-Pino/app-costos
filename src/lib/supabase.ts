@@ -1,13 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Usar valores placeholder en lugar de cadena vacía para evitar que createClient falle en la inicialización estática
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder-url.supabase.co';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'placeholder-anon-key';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-if (supabaseUrl.includes('placeholder-url') || supabaseAnonKey === 'placeholder-anon-key') {
-  console.error(
-    'CRÍTICO: Las credenciales de Supabase no están configuradas en .env.local.\n' +
-    'Por favor reinicia el servidor de desarrollo (npm run dev) después de agregar las variables.'
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(
+    'CRÍTICO: Las credenciales de Supabase no están configuradas en .env.local o en Vercel.\n' +
+    'Por favor agrega NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY.'
   );
 }
 
