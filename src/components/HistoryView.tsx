@@ -36,7 +36,8 @@ export default function HistoryView() {
   const error = validationError || (swrError ? (swrError instanceof Error ? swrError.message : 'Error al obtener los históricos comparativos.') : '');
 
   // Generate list of months for selection
-  const years = [2024, 2025, 2026];
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: Math.max(3, currentYear - 2024 + 1) }, (_, i) => 2024 + i);
   const months = [
     { value: '01', name: 'Enero' },
     { value: '02', name: 'Febrero' },
@@ -136,15 +137,10 @@ export default function HistoryView() {
       });
     }
 
-    // 4. Overrun check on limits
-    const limits: Record<string, number> = {
-      'Mercancia': 35.00, 'Nomina Operativa': 18.00, 'Nomina Administrativa': 7.00,
-      'Arriendo': 12.00, 'Servicios': 5.00, 'Publicidad': 5.00, 'Mantenimiento': 1.00, 'Otros': 1.00
-    };
-
+    // 4. Overrun check on dynamic limits from metas_control
     data.rubros.forEach(r => {
-      const limit = limits[r.rubro] || 0;
-      if (r.porcentaje2 > limit) {
+      const limit = r.limiteMeta || 0;
+      if (limit > 0 && r.porcentaje2 > limit) {
         diagnostics.push({
           type: 'alert',
           text: `El rubro [${r.rubro}] representó un ${r.porcentaje2.toFixed(2)}% en ${getPeriodLabel(period2)}, superando la meta del ${limit.toFixed(2)}%. Requiere auditoría inmediata.`
@@ -417,12 +413,10 @@ export default function HistoryView() {
                 </div>
               </div>
 
-              {/* Rubros Breakdown */}
               {data.rubros.map((r, index) => {
-                // Calculate side-by-side relative horizontal bars
-                const maxVal = Math.max(r.monto1, r.monto2);
-                const width1 = maxVal > 0 ? (r.monto1 / maxVal) * 100 : 0;
-                const width2 = maxVal > 0 ? (r.monto2 / maxVal) * 100 : 0;
+                // Calculate percentage based on sales
+                const width1 = Math.min(100, r.porcentaje1);
+                const width2 = Math.min(100, r.porcentaje2);
                 const costIncreased = r.variacionMonto > 0;
 
                 return (
@@ -478,12 +472,15 @@ export default function HistoryView() {
                         <span className="text-[9px] text-slate-500 uppercase tracking-wider block">Destino</span>
                         <span className="font-bold text-slate-200 block">{formatCurrency(r.monto2)}</span>
                       </div>
-                      <div className="text-right min-w-[130px]">
+                      <div className="text-right min-w-[130px] flex flex-col items-end gap-1">
                         <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold ${
                           r.variacionMonto <= 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
-                        }`}>
+                        }`} title="Crecimiento monetario">
                           {r.variacionMonto <= 0 ? <TrendingDown className="w-3.5 h-3.5" /> : <TrendingUp className="w-3.5 h-3.5" />}
-                          {Math.abs(r.variacionPorcentaje).toFixed(2)}%
+                          {Math.abs(r.variacionMontoPorcentaje).toFixed(1)}%
+                        </span>
+                        <span className={`text-[10px] font-bold ${r.diferenciaPuntos <= 0 ? 'text-emerald-400' : 'text-red-400'}`} title="Diferencia de peso sobre ventas">
+                          {r.diferenciaPuntos > 0 ? '+' : ''}{r.diferenciaPuntos.toFixed(2)} pts
                         </span>
                       </div>
                     </div>

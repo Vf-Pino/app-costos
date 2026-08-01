@@ -344,7 +344,9 @@ export interface HistoricalComparison {
   porcentaje1: number;
   porcentaje2: number;
   variacionMonto: number;
-  variacionPorcentaje: number;
+  variacionMontoPorcentaje: number;
+  diferenciaPuntos: number;
+  limiteMeta: number;
 }
 
 export interface HistoricalComparisonData {
@@ -376,9 +378,10 @@ export async function getHistoricalComparison(period1: string, period2: string):
     const startDate = `${y}-${monthStr}-01`;
     const endDate = `${y}-${monthStr}-${String(totalDays).padStart(2, '0')}`;
 
-    const [ingresosRes, egresosRes] = await Promise.all([
+    const [ingresosRes, egresosRes, metasRes] = await Promise.all([
       supabase.from('ingresos_diarios').select('monto_neto').gte('fecha', startDate).lte('fecha', endDate),
-      supabase.from('egresos_costos').select('rubro_principal, monto').gte('fecha', startDate).lte('fecha', endDate)
+      supabase.from('egresos_costos').select('rubro_principal, monto').gte('fecha', startDate).lte('fecha', endDate),
+      supabase.from('metas_control').select('rubro, meta_porcentaje')
     ]);
 
     if (ingresosRes.error) throw new Error(ingresosRes.error.message);
@@ -392,7 +395,13 @@ export async function getHistoricalComparison(period1: string, period2: string):
       egresosPorRubro[e.rubro_principal] = (egresosPorRubro[e.rubro_principal] || 0) + Number(e.monto);
     });
 
-    return { ventaNeta, egresosPorRubro };
+    const metas = metasRes.data || [];
+    const metasPorRubro: Record<string, number> = {};
+    metas.forEach(m => {
+      metasPorRubro[m.rubro] = Number(m.meta_porcentaje);
+    });
+
+    return { ventaNeta, egresosPorRubro, metasPorRubro };
   };
 
   const [p1, p2] = await Promise.all([
@@ -419,7 +428,10 @@ export async function getHistoricalComparison(period1: string, period2: string):
     const porcentaje2 = p2.ventaNeta > 0 ? (monto2 / p2.ventaNeta) * 100 : 0;
 
     const variacionMonto = monto2 - monto1;
-    const variacionPorcentaje = porcentaje1 > 0 ? ((porcentaje2 - porcentaje1) / porcentaje1) * 100 : (porcentaje2 > 0 ? 100 : 0);
+    const variacionMontoPorcentaje = monto1 > 0 ? (variacionMonto / monto1) * 100 : (monto2 > 0 ? 100 : 0);
+    const diferenciaPuntos = porcentaje2 - porcentaje1;
+
+    const limiteMeta = p2.metasPorRubro[rubro] || 0;
 
     return {
       rubro,
@@ -428,7 +440,9 @@ export async function getHistoricalComparison(period1: string, period2: string):
       porcentaje1,
       porcentaje2,
       variacionMonto,
-      variacionPorcentaje
+      variacionMontoPorcentaje,
+      diferenciaPuntos,
+      limiteMeta
     };
   });
 

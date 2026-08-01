@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { PlusCircle, Edit3, UserX, AlertTriangle } from 'lucide-react';
-import { getActiveEmployees, createEmployee, deactivateEmployee } from '@/lib/queries-nomina';
+import { getActiveEmployees, createEmployee, deactivateEmployee, updateEmployee } from '@/lib/queries-nomina';
 import type { Employee } from '@/lib/types/nomina';
 
 // ─── Tipos del formulario (Hallazgo #7: sin `any`) ───────────────────────────
@@ -31,6 +31,7 @@ function EmployeeModal({
   isSubmitting,
   handleHourlyRateChange,
   handleMinuteRateChange,
+  isEditing,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -40,6 +41,7 @@ function EmployeeModal({
   isSubmitting: boolean;
   handleHourlyRateChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleMinuteRateChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  isEditing: boolean;
 }) {
   // Hallazgo #9: guarda SSR simplificada
   if (!isOpen || typeof window === 'undefined') return null;
@@ -60,8 +62,8 @@ function EmployeeModal({
         {/* Header */}
         <div className="flex items-center justify-between px-8 pt-7 pb-5 border-b border-white/[0.06] relative z-10">
           <div>
-            <h3 className="text-xl font-bold text-white tracking-tight">Agregar Empleado</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Completa los datos del nuevo integrante del equipo.</p>
+            <h3 className="text-xl font-bold text-white tracking-tight">{isEditing ? 'Editar Empleado' : 'Agregar Empleado'}</h3>
+            <p className="text-xs text-slate-500 mt-0.5">{isEditing ? 'Modifica los datos del empleado existente.' : 'Completa los datos del nuevo integrante del equipo.'}</p>
           </div>
           <button
             type="button"
@@ -160,7 +162,7 @@ function EmployeeModal({
               className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 font-bold text-sm shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-all disabled:opacity-50 flex items-center gap-2"
             >
               {isSubmitting && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-              Guardar Empleado
+              {isEditing ? 'Guardar Cambios' : 'Guardar Empleado'}
             </button>
           </div>
         </form>
@@ -178,6 +180,7 @@ export default function EmployeeManager() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState<EmployeeFormData>(EMPTY_FORM);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const loadEmployees = async () => {
     try {
@@ -210,15 +213,31 @@ export default function EmployeeManager() {
     setIsSubmitting(true);
     setError(null);
     try {
-      await createEmployee(formData.first_name, formData.last_name, formData.hourly_rate, formData.minute_rate);
+      if (editingId) {
+        await updateEmployee(editingId, formData.first_name, formData.last_name, formData.hourly_rate, formData.minute_rate);
+      } else {
+        await createEmployee(formData.first_name, formData.last_name, formData.hourly_rate, formData.minute_rate);
+      }
       setIsModalOpen(false);
       setFormData(EMPTY_FORM);
+      setEditingId(null);
       await loadEmployees();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error creando empleado');
+      setError(err instanceof Error ? err.message : 'Error guardando empleado');
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const openEditModal = (emp: Employee) => {
+    setEditingId(emp.id);
+    setFormData({
+      first_name: emp.first_name,
+      last_name: emp.last_name,
+      hourly_rate: emp.hourly_rate,
+      minute_rate: emp.minute_rate != null ? emp.minute_rate : Number((emp.hourly_rate / 60).toFixed(2))
+    });
+    setIsModalOpen(true);
   };
 
   const handleDeactivate = async (id: string, name: string) => {
@@ -251,7 +270,7 @@ export default function EmployeeManager() {
             <p className="text-sm text-slate-400 mt-1">Configura perfiles y tarifas por hora/minuto.</p>
           </div>
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => { setEditingId(null); setFormData(EMPTY_FORM); setIsModalOpen(true); }}
             className="flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-400 hover:to-violet-500 text-white px-5 py-2.5 rounded-xl font-semibold shadow-[0_0_20px_rgba(99,102,241,0.3)] transition-all duration-300 transform hover:scale-105 active:scale-95"
           >
             <PlusCircle className="w-5 h-5" />
@@ -304,7 +323,7 @@ export default function EmployeeManager() {
                     </td>
                     <td className="px-4 py-5 whitespace-nowrap text-right">
                       <div className="flex justify-end gap-3">
-                        <button className="p-2 text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-colors" title="Editar">
+                        <button onClick={() => openEditModal(emp)} className="p-2 text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-colors" title="Editar">
                           <Edit3 className="w-5 h-5" />
                         </button>
                         <button
@@ -326,13 +345,14 @@ export default function EmployeeManager() {
 
       <EmployeeModal
         isOpen={isModalOpen}
-        onClose={() => { setIsModalOpen(false); setFormData(EMPTY_FORM); }}
+        onClose={() => { setIsModalOpen(false); setFormData(EMPTY_FORM); setEditingId(null); }}
         formData={formData}
         setFormData={setFormData}
         onSubmit={handleAddEmployee}
         isSubmitting={isSubmitting}
         handleHourlyRateChange={handleHourlyRateChange}
         handleMinuteRateChange={handleMinuteRateChange}
+        isEditing={!!editingId}
       />
     </>
   );

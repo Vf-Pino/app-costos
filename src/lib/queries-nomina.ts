@@ -62,6 +62,25 @@ export async function createEmployee(
   return data as Employee;
 }
 
+/** Actualiza la información de un empleado existente */
+export async function updateEmployee(
+  id: string,
+  first_name: string,
+  last_name: string,
+  hourly_rate: number,
+  minute_rate?: number
+): Promise<Employee> {
+  const { data, error } = await supabase
+    .from('employees')
+    .update({ first_name, last_name, hourly_rate, minute_rate })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw new Error(`Error actualizando empleado: ${error.message}`);
+  return data as Employee;
+}
+
 /** Desactiva (soft-delete) un empleado */
 export async function deactivateEmployee(id: string): Promise<void> {
   const { error } = await supabase
