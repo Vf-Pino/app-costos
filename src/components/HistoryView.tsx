@@ -36,7 +36,6 @@ export default function HistoryView() {
   const error = validationError || (swrError ? (swrError instanceof Error ? swrError.message : 'Error al obtener los históricos comparativos.') : '');
 
   // Generate list of months for selection
-  const currentYear = new Date().getFullYear();
   const years = Array.from({ length: Math.max(3, currentYear - 2024 + 1) }, (_, i) => 2024 + i);
   const months = [
     { value: '01', name: 'Enero' },
